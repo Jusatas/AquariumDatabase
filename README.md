@@ -53,8 +53,8 @@ The scripts can be run like this:
 In this examlpe the commands would look like this:
 
 ```bash
-\i schema.sql
-\i triggers.sql
-\i test_data.sql
+\i sql/schema.sql
+\i sql/triggers.sql
+\i sql/test_data.sql
 ```
 ---
