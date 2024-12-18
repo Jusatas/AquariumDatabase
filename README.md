@@ -14,7 +14,7 @@ After setting up PostgreeSQL, log in as the superuser
 
 As the superuser, create the main database:
 ```sql
-CREATE DATABASE aquarium_db;`
+CREATE DATABASE aquarium_db;
 ```
 
 ### 3. Create a new user
