@@ -9,11 +9,11 @@ DROP VIEW IF EXISTS judr0384.ZuvysAkvariumuose;
 DROP MATERIALIZED VIEW IF EXISTS judr0384.AkvariumuInfo;
 
 CREATE TABLE judr0384.Priziuretojas (
-	ID SERIAL PRIMARY KEY,
-	Kvalifikacija VARCHAR(20) CHECK (Kvalifikacija IN ('Jurinis', 'Gelavandenis')),
-	Atlyginimas NUMERIC(10, 2) CHECK (Atlyginimas > 0),
-	Vardas VARCHAR(50),
-	Pavarde VARCHAR(50)
+    ID SERIAL PRIMARY KEY,
+    Kvalifikacija VARCHAR(20) CHECK (Kvalifikacija IN ('Jurinis', 'Gelavandenis')),
+    Atlyginimas NUMERIC(10, 2) CHECK (Atlyginimas > 0),
+    Vardas VARCHAR(50),
+    Pavarde VARCHAR(50)
 );
 
 CREATE TABLE judr0384.Akvariumas (
@@ -25,16 +25,16 @@ CREATE TABLE judr0384.Akvariumas (
 );
 
 CREATE TABLE judr0384.Prieziura (
-	Pradzia DATE, --todo
-	Pabaiga DATE,
-        PriziuretojoID INTEGER REFERENCES Priziuretojas(ID),
-        AkvariumoID INTEGER REFERENCES Akvariumas(ID),
-	PRIMARY KEY (PriziuretojoID, AkvariumoID) 
+    Pradzia DATE, --todo
+    Pabaiga DATE,
+    PriziuretojoID INTEGER REFERENCES judr0384.Priziuretojas(ID),
+    AkvariumoID INTEGER REFERENCES judr0384.Akvariumas(ID),
+    PRIMARY KEY (PriziuretojoID, AkvariumoID) 
 );
 
 CREATE TABLE judr0384.Zuvis (
 	ID SERIAL PRIMARY KEY,
-	AkvariumoID INTEGER REFERENCES Akvariumas(ID),
+	AkvariumoID INTEGER REFERENCES judr0384.Akvariumas(ID),
 	Pasaras VARCHAR (10) CHECK (Pasaras IN ('Sausas', 'Gyvas')),
 	Dydis DECIMAL(5, 2) CHECK (Dydis > 0),
 	MaxDydis DECIMAL (5, 2) CHECK (MaxDydis > Dydis),
@@ -46,31 +46,31 @@ CREATE TABLE judr0384.Zuvis (
 );
 
 -- Frequently queried information
-CREATE INDEX idx_priziuretojas_name ON Priziuretojas(Vardas, Pavarde);
-CREATE INDEX idx_zuvis_akvariumas_agresyvi ON Zuvis(AkvariumoID, Agresyvi);
-CREATE INDEX idx_akvariumas_id_saugumas ON Akvariumas(ID, Saugumas);
+CREATE INDEX idx_priziuretojas_name ON judr0384.Priziuretojas(Vardas, Pavarde);
+CREATE INDEX idx_zuvis_akvariumas_agresyvi ON judr0384.Zuvis(AkvariumoID, Agresyvi);
+CREATE INDEX idx_akvariumas_id_saugumas ON judr0384.Akvariumas(ID, Saugumas);
 
 
 -- Unique index to protect against accidental addition of priziuretojas twice
-CREATE UNIQUE INDEX idx_unique_prieziura ON Prieziura(PriziuretojoID, AkvariumoID, Pradzia);
+CREATE UNIQUE INDEX idx_unique_prieziura ON judr0384.Prieziura(PriziuretojoID, AkvariumoID, Pradzia);
 
 -- Frequently used information for sorting
-CREATE INDEX idx_akvariumas_talpa ON Akvariumas(Talpa);
+CREATE INDEX idx_akvariumas_talpa ON judr0384.Akvariumas(Talpa);
 
 
 
-CREATE VIEW Dirbantys AS
+CREATE VIEW judr0384.Dirbantys AS
 SELECT 
 	p.Vardas || ' ' || p.Pavarde AS Priziuretojas,
 	a.ID AS Akvariumas,
 	a.Tipas AS AquariumoTipas,
 	pr.Pradzia AS PradziosData
-FROM Priziuretojas p
-JOIN Prieziura pr ON p.ID = pr.PriziuretojoID
-JOIN Akvariumas a ON pr.AkvariumoID = a.ID
+FROM judr0384.Priziuretojas p
+JOIN judr0384.Prieziura pr ON p.ID = pr.PriziuretojoID
+JOIN judr0384.Akvariumas a ON pr.AkvariumoID = a.ID
 WHERE pr.Pabaiga IS NULL;
 
-CREATE VIEW ZuvysAkvariumuose AS
+CREATE VIEW judr0384.ZuvysAkvariumuose AS
 SELECT 
 	a.ID AS Akvariumas,
 	z.ID AS Zuvis,
@@ -82,8 +82,8 @@ SELECT
 	a.Tipas AS Tipas,
 	a.Talpa AS Talpa,
 	a.Saugumas AS Saugus
-FROM Zuvis z
-JOIN Akvariumas a ON z.AkvariumoID = a.ID;
+FROM judr0384.Zuvis z
+JOIN judr0384.Akvariumas a ON z.AkvariumoID = a.ID;
 
 CREATE MATERIALIZED VIEW judr0384.AkvariumuInfo AS
 SELECT 

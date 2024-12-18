@@ -12,9 +12,10 @@ After setting up PostgreeSQL, log in as the superuser
 
 ### 2. Create the database:
 
-As the superuser, create the main database:
+As the superuser, create the main database and schema:
 ```sql
 CREATE DATABASE aquarium_db;
+CREATE SCHEMA judr0384;
 ```
 
 ### 3. Create a new user
