@@ -127,27 +127,62 @@ EXECUTE FUNCTION biomass_check();
 
 CREATE OR REPLACE FUNCTION last_caretaker_check()
 RETURNS TRIGGER AS $$
-DECLARE
-	active_caretakers INTEGER;
 BEGIN
-	SELECT COUNT(*) INTO active_caretakers
-	FROM Dirbantys
-	WHERE Akvariumas = (SELECT AkvariumoID FROM Prieziura WHERE PriziuretojoID = OLD.ID)
-	  AND Akvariumas = OLD.AkvariumoID;
-
-	IF active_caretakers <= 1 THEN
-	RAISE EXCEPTION 'Pasalinti priziuretojo % negalima, nes jis yra paskutinis akvariumo % priziuretojas', 
-	    OLD.ID, OLD.AkvariumoID;
-	END IF;
-
-	RETURN OLD;
+    IF EXISTS (
+        SELECT 1
+        FROM judr0384.Prieziura pr
+        JOIN judr0384.AkvariumuInfo ai ON ai.ID = pr.AkvariumoID
+        WHERE pr.PriziuretojoID = OLD.ID
+        AND pr.Pabaiga IS NULL
+        AND ai.ZuvuSkaicius > 0
+        AND NOT EXISTS (
+            SELECT 1
+            FROM judr0384.Prieziura p2
+            WHERE p2.AkvariumoID = pr.AkvariumoID
+            AND p2.PriziuretojoID != OLD.ID
+            AND p2.Pabaiga IS NULL
+        )
+    ) THEN
+        RAISE EXCEPTION 'Negalima pasalinti priziuretojo ID %, nes tai paskutinis aktyvus priziuretojas bent vienam akvariumui su bent viena zuvimi.', 
+            OLD.ID;
+    END IF;
+    RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER Paskutinis_Priziuretojas
+CREATE TRIGGER Last_Caretaker
 BEFORE DELETE ON judr0384.Priziuretojas
 FOR EACH ROW
 EXECUTE FUNCTION last_caretaker_check();
+
+
+CREATE OR REPLACE FUNCTION caretaker_qualification_check()
+RETURNS TRIGGER AS $$
+DECLARE
+    caretaker_qualification VARCHAR(20);
+    aquarium_type VARCHAR(15);
+BEGIN
+
+    SELECT Kvalifikacija INTO caretaker_qualification
+    FROM judr0384.Priziuretojas
+    WHERE ID = NEW.PriziuretojoID;
+
+    SELECT Tipas INTO aquarium_type
+    FROM judr0384.Akvariumas
+    WHERE ID = NEW.AkvariumoID;
+
+    IF caretaker_qualification = 'Gelavandenis' AND aquarium_type = 'Jurinis' THEN
+        RAISE EXCEPTION 'Tik Gelavandeniu kvalifikacija turintis priziuretojas negali priziureti jurinio akvariumo.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER Qualification_Check
+BEFORE INSERT OR UPDATE ON judr0384.Prieziura
+FOR EACH ROW
+EXECUTE FUNCTION caretaker_qualification_check();
 
 
 
@@ -158,6 +193,75 @@ BEGIN
 	RETURN NEW;
 END 
 $$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION update_biomass_on_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE judr0384.Akvariumas
+    SET Biomase = COALESCE(
+        (SELECT SUM(Dydis * 1.3)
+        FROM judr0384.Zuvis
+        WHERE AkvariumoID = OLD.AkvariumoID
+        AND ID != OLD.ID), 0)
+    WHERE ID = OLD.AkvariumoID;
+    
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER Biomase_Delete
+AFTER DELETE ON judr0384.Zuvis
+FOR EACH ROW
+EXECUTE FUNCTION update_biomass_on_delete();
+
+CREATE OR REPLACE FUNCTION check_care_end()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM judr0384.AkvariumuInfo ai
+        WHERE ai.ID = OLD.AkvariumoID 
+        AND ai.ZuvuSkaicius > 0
+    ) AND NOT EXISTS (
+        SELECT 1 
+        FROM judr0384.Prieziura
+        WHERE AkvariumoID = OLD.AkvariumoID
+        AND PriziuretojoID != OLD.PriziuretojoID
+        AND Pabaiga IS NULL
+    ) THEN
+        RAISE EXCEPTION 'Negalima nutraukti prieziuros akvariumui %, nes jame yra zuvu ir jis neturi daugiau priziuretoju.', 
+            OLD.AkvariumoID;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER Check_Care_End
+BEFORE UPDATE OF Pabaiga ON judr0384.Prieziura
+FOR EACH ROW
+WHEN (OLD.Pabaiga IS NULL AND NEW.Pabaiga IS NOT NULL)
+EXECUTE FUNCTION check_care_end();
+
+CREATE OR REPLACE FUNCTION ensure_caretaker_on_fish_addition()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM judr0384.Dirbantys 
+        WHERE Akvariumas = NEW.AkvariumoID
+    ) THEN
+        RAISE EXCEPTION 'Negalima prideti zuvies i akvariuma %, nes jis neturi priziuretoju.', 
+            NEW.AkvariumoID;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER Ensure_Caretaker_Fish_Addition
+BEFORE INSERT ON judr0384.Zuvis
+FOR EACH ROW
+EXECUTE FUNCTION ensure_caretaker_on_fish_addition();
 
 -- refresh materialized view after Zuvis table operations
 CREATE TRIGGER update_aquariums_info

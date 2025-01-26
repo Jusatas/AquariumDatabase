@@ -1,53 +1,45 @@
-REFRESH MATERIALIZED VIEW judr0384.AkvariumuInfo;
-
+-- 1. Insert valid Aquariums
 INSERT INTO judr0384.Akvariumas (Tipas, Talpa, Saugumas)
 VALUES
-        ('Jurinis', 300, FALSE),
-        ('Jurinis', 2500, TRUE),
-        ('Gelavandenis', 1000, FALSE),
-        ('Gelavandenis', 50, FALSE),
-        ('Gelavandenis', 500, TRUE);
+    ('Jurinis', 300, FALSE),
+    ('Jurinis', 2500, TRUE),
+    ('Gelavandenis', 1000, FALSE),
+    ('Gelavandenis', 50, FALSE),
+    ('Gelavandenis', 500, TRUE);
 
--- Succesful inserts
-INSERT INTO judr0384.Zuvis (AkvariumoID, Pasaras, Dydis, MaxDydis, Agresyvi, AkvTipas, Gentis, Rusis, TrivPav)
-VALUES
-        (1, 'Sausas', 15, 20, FALSE, 'Jurinis', 'Carassius', 'Auratus', 'Auksine Zuvele'),
-        (2, 'Sausas', 8, 12, FALSE, 'Jurinis', 'Danio', 'Rerio', 'Zebrine Danija');
-
--- Successful insert without optional values
-INSERT INTO judr0384.Zuvis (AkvariumoID, Pasaras, Dydis, MaxDydis, AkvTipas, Gentis, Rusis)
-VALUES (5, 'Gyvas', 5, 10., 'Gelavandenis', 'Betta', 'Splendens');
-
--- Fail (Dydis should not be greater than MaxDydis)
-INSERT INTO judr0384.Zuvis (AkvariumoID, Pasaras, Dydis, MaxDydis, Agresyvi, AkvTipas, Gentis, Rusis, TrivPav)
-VALUES (3, 'Gyvas', -1, 5, TRUE, 'Gelavandenis', 'Guppy', 'Reticulata', 'Magiska Gupija');
-
--- Succesful insert - correct aquarium type
-INSERT INTO judr0384.Zuvis (AkvariumoID, Pasaras, Dydis, MaxDydis, Agresyvi, AkvTipas, Gentis, Rusis, TrivPav)
-VALUES (1, 'Gyvas', 10, 15, TRUE, 'Jurinis', 'Clownfish', 'Ocellaris', 'Zuvis Klounas');
-
--- Fail - wrong water type
-INSERT INTO judr0384.Zuvis (AkvariumoID, Pasaras, Dydis, MaxDydis, Agresyvi, AkvTipas, Gentis, Rusis, TrivPav)
-VALUES (1, 'Gyvas', 10, 15, TRUE, 'Gelavandenis', 'Tetra', 'Neon', 'Nesekminga Neonzuve');
-
-
--- Caretakers
+-- 2. Insert valid Caretakers
 INSERT INTO judr0384.Priziuretojas (Kvalifikacija, Atlyginimas, Vardas, Pavarde)
 VALUES
     ('Jurinis', 2000.00, 'Jonas', 'Petrauskas'),
-    ('Gelavandenis', 1800.50, 'Matas', 'Knatas'),
-    ('Jurinis', 2500.75, 'Egle', 'Andraite'),
+    ('Jurinis', 1800.50, 'Matas', 'Knatas'),
+    ('Gelavandenis', 2500.75, 'Egle', 'Andraite'),
     ('Gelavandenis', 2200.00, 'Petras', 'Rudasis'),
-    ('Jurinis', 3000.00, 'Tomas', 'Bingas');
+    ('Gelavandenis', 3000.00, 'Tomas', 'Bingas');
 
-
--- Prieziuros
+-- 3. Insert valid Prieziura entries
 INSERT INTO judr0384.Prieziura (Pradzia, Pabaiga, PriziuretojoID, AkvariumoID)
 VALUES
-        ('2024-01-01', '2024-06-01', 1, 1), -- Jonas manages the 1st aquarium
-        ('2024-03-01', NULL, 2, 2),        -- Austeja manages the 2nd aquarium, still going
-        ('2024-02-15', '2024-09-15', 3, 2),-- Egle managed the 2nd aquarium with Austeja for a time
-        ('2024-04-01', '2024-05-01', 4, 4),-- Petras  managed the 4th aquarium
-        ('2024-07-01', NULL, 5, 5);        -- Tomas manages the 5th aquarium, still going
+    ('2024-01-01', '2024-06-01', 1, 1), -- Jonas manages the 1st aquarium
+    ('2024-03-01', NULL, 2, 2),        -- Matas manages the 2nd aquarium, ongoing
+    ('2024-02-15', '2024-09-15', 3, 3),-- Egle managed the 3rd aquarium
+    ('2024-04-01', '2024-05-01', 4, 4),-- Petras managed the 4th aquarium
+    ('2024-07-01', NULL, 5, 5);        -- Tomas manages the 5th aquarium, ongoing
 
-REFRESH MATERIALIZED VIEW judr0384.AkvariumuInfo;
+-- 4. Insert valid Fishes
+INSERT INTO judr0384.Zuvis (AkvariumoID, Pasaras, Dydis, MaxDydis, Agresyvi, AkvTipas, Gentis, Rusis, TrivPav)
+VALUES
+    (2, 'Sausas', 15, 20, FALSE, 'Jurinis', 'Carassius', 'Auratus', 'Auksine Zuvele'),
+    (5, 'Gyvas', 10, 12, TRUE, 'Gelavandenis', 'Danio', 'Rerio', 'Zebrine Danija');
+
+-- 5. Invalid Cases for Testing
+-- Invalid: Fish assigned to nonexistent Aquarium
+INSERT INTO judr0384.Zuvis (AkvariumoID, Pasaras, Dydis, MaxDydis, Agresyvi, AkvTipas, Gentis, Rusis, TrivPav)
+VALUES (999, 'Gyvas', 10, 15, TRUE, 'Jurinis', 'Invalid', 'Fish', 'Fake Entry');
+
+-- Invalid: Caretaker with Gelavandenis qualification managing Jurinis Aquarium
+INSERT INTO judr0384.Prieziura (Pradzia, Pabaiga, PriziuretojoID, AkvariumoID)
+VALUES ('2024-08-01', NULL, 2, 1); -- Matas assigned to Jurinis
+
+-- Invalid: Aquarium with no care entry
+INSERT INTO judr0384.Akvariumas (Tipas, Talpa, Saugumas)
+VALUES ('Jurinis', 500, FALSE); -- Should fail due to `ensure_caretaker_on_aquarium_creation` trigger
